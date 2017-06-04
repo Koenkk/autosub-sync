@@ -2,19 +2,24 @@
 import argparse
 from datetime import datetime
 from fuzzywuzzy import fuzz
+import unicodedata
 from sklearn import linear_model
 import numpy as np
 import tempfile
 import subprocess
 import sys
 import copy
+import os
 from bokeh.plotting import figure, output_file, show
 from bokeh.models import HoverTool, ColumnDataSource
+from translation import bing
+import progressbar
 
 
 MATCHER_MAX_TIME_DIFF =  10 * 60 # 10 minutes
 MATCHER_MIN_SUBTITLE_LENGTH = 10
 MATCHER_MIN_SCORE = 80
+MOVIE_EXTENSIONS = [".mkv", ".mp4", ".avi"]
 
 
 class SubtitleTrack:
@@ -205,22 +210,50 @@ def generate_subtitle(video_file):
     return SubtitleTrack(temp)
 
 
+def translate_text_parsed(subtitle_track, target_language):
+    print('Translating...')
+    bar = progressbar.ProgressBar()
+    for i in bar(range(len(subtitle_track.subtitles))):
+        try:
+            subtitle = subtitle_track.subtitles[i]
+            subtitle.text_parsed = bing(subtitle.text_parsed, dst = 'nl').encode('utf-8','ignore')
+        except:
+            print('Failed to translate %s' % (str(subtitle)))
+
+
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-s', '--subtitle', required=True,
-                        help="Path to the subtitle to synchronize.")
     parser.add_argument('-i', '--input', required=True,
-                        help="Path to the video to synchronize the subtitle with.")
+                        help="Path to the subtitle to synchronize.")
+    parser.add_argument('-s', '--sync', required=True,
+                        help="Path to the video or subtitle to synchronize the input with.")
     parser.add_argument('-o', '--output', required=True,
                         help="Output path for the synchronized subtitle.")
     parser.add_argument('-p', '--plot',
                         help="Output path to save a plot (html) of the matches.")
+    parser.add_argument('-l', '--lang',
+                        help="If you --sync with subtitle provide the language of the --input subtitle.")
 
     args = parser.parse_args()
 
-    input_track = SubtitleTrack(args.subtitle)
-    sync_track = generate_subtitle(args.input)
+    sync_extension = os.path.splitext(args.sync)[1].lower()
+    if sync_extension == '.srt':
+        if not args.lang:
+            print('Missing --lang, provide the language of --input.')
+            return 1
+
+        print("Sync input with subtitle.")
+        input_track = SubtitleTrack(args.input)
+        sync_track = SubtitleTrack(args.sync)
+        translate_text_parsed(sync_track, args.lang)
+    elif sync_extension in MOVIE_EXTENSIONS:
+        print("Sync input with movie.")
+        input_track = SubtitleTrack(args.input)
+        sync_track = generate_subtitle(args.sync)
+    else:
+        print("Unable to detect sync method, -s/--sync is in unsupported format.")
+        return 1
 
     matches = find_matches(input_track, sync_track)
 

@@ -1,0 +1,6 @@
+numpy
+autosub
+fuzzywuzzy
+python-Levenshtein
+sklearn
+scipy

@@ -12,7 +12,7 @@ from bokeh.plotting import figure, output_file, show
 from bokeh.models import HoverTool, ColumnDataSource
 
 
-MATCHER_MAX_TIME_DIFF =  10 * 60
+MATCHER_MAX_TIME_DIFF =  10 * 60 # 10 minutes
 MATCHER_MIN_SUBTITLE_LENGTH = 10
 MATCHER_MIN_SCORE = 80
 
@@ -98,7 +98,7 @@ class Subtitle:
             self.text.append(line)
             self.text_parsed += "%s " % line
 
-        # Parse the text to be me fuzzy compare friendly.
+        # Parse the text to be more fuzzy compare friendly.
         chars_to_remove = [ "</i>", "<i>", ".", ",", "!", "-", ":", '"', "?"]
         for char in chars_to_remove:
             self.text_parsed = self.text_parsed.replace(char, "")
@@ -132,24 +132,24 @@ class Subtitle:
         return string
 
 
-def find_matches(real, generated):
+def find_matches(input_track, sync_track):
     matches = []
 
-    for real_subtitle in real.subtitles:
+    for input_subtitle in input_track.subtitles:
         found_matches = []
 
-        for generated_subtitle in generated.subtitles:
-            time_diff = abs(generated_subtitle.start - real_subtitle.start)
+        for sync_subtile in sync_track.subtitles:
+            time_diff = abs(sync_subtile.start - input_subtitle.start)
 
-            if time_diff <= MATCHER_MAX_TIME_DIFF and len(real_subtitle.text_parsed) > MATCHER_MIN_SUBTITLE_LENGTH:
-                score = fuzz.ratio(generated_subtitle.text_parsed,
-                                   real_subtitle.text_parsed)
+            if time_diff <= MATCHER_MAX_TIME_DIFF and len(input_subtitle.text_parsed) > MATCHER_MIN_SUBTITLE_LENGTH:
+                score = fuzz.ratio(sync_subtile.text_parsed,
+                                   input_subtitle.text_parsed)
 
                 if score >= MATCHER_MIN_SCORE:
-                    found_matches.append((score, generated_subtitle))
+                    found_matches.append((score, sync_subtile))
 
         if len(found_matches) is 1:
-            matches.append((found_matches[0][0], real_subtitle, found_matches[0][1]))
+            matches.append((found_matches[0][0], input_subtitle, found_matches[0][1]))
 
     return matches
 
@@ -157,20 +157,20 @@ def find_matches(real, generated):
 def plot_matches(matches, plot_file):
     output_file(plot_file)
     p = figure()
-    p.add_tools(HoverTool(tooltips=[("real", "@real"),("generated", "@generated")]))
+    p.add_tools(HoverTool(tooltips=[("input", "@input"),("sync", "@sync")]))
 
     x = []
     y = []
-    real = []
-    generated = []
+    input = []
+    sync = []
 
     for match in matches:
         x.append(match[1].start)
         y.append(match[1].start - match[2].start)
-        real.append(str(match[1]))
-        generated.append(str(match[2]))
+        input.append(str(match[1]))
+        sync.append(str(match[2]))
 
-    source = ColumnDataSource(data=dict(x=x, y=y, real=real, generated=generated))
+    source = ColumnDataSource(data=dict(x=x, y=y, input=input, sync=sync))
 
     p.line('x', 'y', source=source)
     show(p)
@@ -207,42 +207,31 @@ def generate_subtitle(video_file):
 
 def main():
     parser = argparse.ArgumentParser()
+
     parser.add_argument('-s', '--subtitle', required=True,
                         help="Path to the subtitle to synchronize.")
-    parser.add_argument('-v', '--video', required=True,
+    parser.add_argument('-i', '--input', required=True,
                         help="Path to the video to synchronize the subtitle with.")
     parser.add_argument('-o', '--output', required=True,
                         help="Output path for the synchronized subtitle.")
     parser.add_argument('-p', '--plot',
-                        help="Output path to save a plot of the matches.")
+                        help="Output path to save a plot (html) of the matches.")
 
     args = parser.parse_args()
 
-    if not args.video:
-        print("Provide a video file with --video.")
-        return 1
+    input_track = SubtitleTrack(args.subtitle)
+    sync_track = generate_subtitle(args.input)
 
-    if not args.subtitle:
-        print("Provide a subtitle file to sync with --subtitle.")
-        return 1
-
-    if not args.output:
-        print("Provide an output file with --output.")
-        return 1
-
-    real_subtitle = SubtitleTrack(args.subtitle)
-    generated_subtitle = generate_subtitle(args.video)
-
-    matches = find_matches(real_subtitle, generated_subtitle)
+    matches = find_matches(input_track, sync_track)
 
     if args.plot:
         plot_matches(matches, args.plot)
 
     (coefficient, intercept) = calculate_linear_regression(matches)
 
-    sync_with_linear_regression(real_subtitle, coefficient, intercept)
+    sync_with_linear_regression(input_track, coefficient, intercept)
 
-    real_subtitle.write(args.output)
+    input_track.write(args.output)
 
     print("Wrote automatic synced subtitle file to %s" % args.output)
 

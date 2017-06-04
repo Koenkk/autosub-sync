@@ -233,7 +233,7 @@ def main():
     parser.add_argument('-p', '--plot',
                         help="Output path to save a plot (html) of the matches.")
     parser.add_argument('-l', '--lang',
-                        help="If you --sync with subtitle provide the language of the --input subtitle.")
+                        help="If you --sync with subtitle provide the language of the --input subtitle. See languages.txt to find the language code (E.G. nl).")
 
     args = parser.parse_args()
 

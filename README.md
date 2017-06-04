@@ -36,7 +36,8 @@ optional arguments:
                         Output path for the synchronized subtitle.
   -p PLOT, --plot PLOT  Output path to save a plot (html) of the matches.
   -l LANG, --lang LANG  If you --sync with subtitle provide the language of
-                        the --input subtitle.
+                        the --input subtitle. See languages.txt to find the
+                        language code (E.G. nl).
 ```
 
 ### License

@@ -8,6 +8,13 @@ import tempfile
 import subprocess
 import sys
 import copy
+from bokeh.plotting import figure, output_file, show
+from bokeh.models import HoverTool, ColumnDataSource
+
+
+MATCHER_MAX_TIME_DIFF =  10 * 60
+MATCHER_MIN_SUBTITLE_LENGTH = 10
+MATCHER_MIN_SCORE = 80
 
 
 class SubtitleTrack:
@@ -129,18 +136,45 @@ def find_matches(real, generated):
     matches = []
 
     for real_subtitle in real.subtitles:
-        best_match = (0, None)
+        found_matches = []
 
         for generated_subtitle in generated.subtitles:
-            score = fuzz.ratio(generated_subtitle.text_parsed,
-                               real_subtitle.text_parsed)
-            if  score and score > best_match[0]:
-                best_match = (score, generated_subtitle)
+            time_diff = abs(generated_subtitle.start - real_subtitle.start)
 
-        if best_match[0] > 90:
-            matches.append((best_match[0], real_subtitle, best_match[1]))
+            if time_diff <= MATCHER_MAX_TIME_DIFF and len(real_subtitle.text_parsed) > MATCHER_MIN_SUBTITLE_LENGTH:
+                score = fuzz.ratio(generated_subtitle.text_parsed,
+                                   real_subtitle.text_parsed)
+
+                if score >= MATCHER_MIN_SCORE:
+                    found_matches.append((score, generated_subtitle))
+
+        if len(found_matches) is 1:
+            matches.append((found_matches[0][0], real_subtitle, found_matches[0][1]))
 
     return matches
+
+
+def plot_matches(matches, plot_file):
+    output_file(plot_file)
+    p = figure()
+    p.add_tools(HoverTool(tooltips=[("real", "@real"),("generated", "@generated")]))
+
+    x = []
+    y = []
+    real = []
+    generated = []
+
+    for match in matches:
+        x.append(match[1].start)
+        y.append(match[1].start - match[2].start)
+        real.append(str(match[1]))
+        generated.append(str(match[2]))
+
+    source = ColumnDataSource(data=dict(x=x, y=y, real=real, generated=generated))
+
+    p.line('x', 'y', source=source)
+    show(p)
+    print("Saved plot to %s" % plot_file)
 
 
 def calculate_linear_regression(matches):
@@ -179,6 +213,8 @@ def main():
                         help="Path to the video to synchronize the subtitle with.")
     parser.add_argument('-o', '--output', required=True,
                         help="Output path for the synchronized subtitle.")
+    parser.add_argument('-p', '--plot',
+                        help="Output path to save a plot of the matches.")
 
     args = parser.parse_args()
 
@@ -198,6 +234,9 @@ def main():
     generated_subtitle = generate_subtitle(args.video)
 
     matches = find_matches(real_subtitle, generated_subtitle)
+
+    if args.plot:
+        plot_matches(matches, args.plot)
 
     (coefficient, intercept) = calculate_linear_regression(matches)
 

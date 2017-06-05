@@ -18,7 +18,7 @@ import progressbar
 
 MATCHER_MAX_TIME_DIFF =  10 * 60 # 10 minutes
 MATCHER_MIN_SUBTITLE_LENGTH = 10
-MATCHER_MIN_SCORE = 80
+MATCHER_MIN_SCORE = 70
 MOVIE_EXTENSIONS = [".mkv", ".mp4", ".avi"]
 
 
@@ -159,13 +159,15 @@ def find_matches(input_track, sync_track):
     return matches
 
 
-def plot_matches(matches, plot_file):
+def plot_matches(matches, plot_file, coefficient, intercept):
     output_file(plot_file)
     p = figure()
     p.add_tools(HoverTool(tooltips=[("input", "@input"),("sync", "@sync")]))
 
     x = []
     y = []
+    x_linear_regression = []
+    y_linear_regression = []
     input = []
     sync = []
 
@@ -174,10 +176,13 @@ def plot_matches(matches, plot_file):
         y.append(match[1].start - match[2].start)
         input.append(str(match[1]))
         sync.append(str(match[2]))
+        x_linear_regression.append(match[1].start)
+        y_linear_regression.append((match[1].start * coefficient) + intercept)
 
     source = ColumnDataSource(data=dict(x=x, y=y, input=input, sync=sync))
 
     p.line('x', 'y', source=source)
+    p.line(x_linear_regression, y_linear_regression, color='red')
     show(p)
     print("Saved plot to %s" % plot_file)
 
@@ -257,10 +262,10 @@ def main():
 
     matches = find_matches(input_track, sync_track)
 
-    if args.plot:
-        plot_matches(matches, args.plot)
-
     (coefficient, intercept) = calculate_linear_regression(matches)
+
+    if args.plot:
+        plot_matches(matches, args.plot, coefficient, intercept)
 
     sync_with_linear_regression(input_track, coefficient, intercept)
 

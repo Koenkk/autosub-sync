@@ -196,9 +196,24 @@ def calculate_linear_regression(matches):
         x.append(match[1].start)
 
     X = np.vander(x, 2)
-    model_ransac = linear_model.RANSACRegressor(linear_model.LinearRegression())
-    model_ransac.fit(X, y)
-    return (model_ransac.estimator_.coef_[0], model_ransac.estimator_.intercept_)
+
+    def calculate_ransac():
+        try:
+            model_ransac = linear_model.RANSACRegressor()
+            model_ransac.fit(X, y)
+            return model_ransac
+        except:
+            return calculate_ransac()
+
+    iterations = 5
+    coef = 0
+    intercept = 0
+    for i in range(iterations):
+        model_ransac = calculate_ransac()
+        coef += model_ransac.estimator_.coef_[0]
+        intercept += model_ransac.estimator_.intercept_
+
+    return (coef / iterations, intercept / iterations)
 
 
 def sync_with_linear_regression(subtitle_track, coefficient, intercept):

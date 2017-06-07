@@ -145,7 +145,6 @@ def find_matches(input_track, sync_track):
 
         for sync_subtile in sync_track.subtitles:
             time_diff = abs(sync_subtile.start - input_subtitle.start)
-
             if time_diff <= MATCHER_MAX_TIME_DIFF and len(input_subtitle.text_parsed) > MATCHER_MIN_SUBTITLE_LENGTH:
                 score = fuzz.ratio(sync_subtile.text_parsed,
                                    input_subtitle.text_parsed)
@@ -254,7 +253,6 @@ def main():
                         help="Output path to save a plot (html) of the matches.")
     parser.add_argument('-l', '--lang',
                         help="If you --sync with subtitle provide the language of the --input subtitle. See languages.txt to find the language code (E.G. nl).")
-
     args = parser.parse_args()
 
     sync_extension = os.path.splitext(args.sync)[1].lower()
@@ -276,6 +274,10 @@ def main():
         return 1
 
     matches = find_matches(input_track, sync_track)
+
+    if len(matches) is 0:
+        print("Found no matches with sync input, unable to sync...")
+        return 1
 
     (coefficient, intercept) = calculate_linear_regression(matches)
 

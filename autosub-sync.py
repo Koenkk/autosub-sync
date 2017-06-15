@@ -44,7 +44,7 @@ class SubtitleTrack:
             while True:
                 l = next(content_gen)
 
-                if l is '':
+                if l is '' and len(lines) >= 3:
                     self.subtitles.append(Subtitle(lines))
                     break
                 else:

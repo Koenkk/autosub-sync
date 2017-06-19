@@ -223,10 +223,12 @@ def sync_with_linear_regression(subtitle_track, coefficient, intercept):
         subtitle.end -= (subtitle.end * coefficient)
 
 
-def generate_subtitle(video_file):
-    temp = tempfile.mkstemp(suffix=".srt")[1]
-    print subprocess.check_output(['autosub','-o',temp,video_file])
-    return SubtitleTrack(temp)
+def generate_subtitle(video_file, output):
+    output = os.path.split(output)
+    output = os.path.join(output[0], ".%s.autosub" % output[1])
+    cmd = ['autosub','-o', output, video_file]
+    print subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    return output
 
 
 def translate_text_parsed(subtitle_track, target_language):
@@ -251,6 +253,8 @@ def main():
                         help="Output path for the synchronized subtitle.")
     parser.add_argument('-p', '--plot',
                         help="Output path to save a plot (html) of the matches.")
+    parser.add_argument('--keep', help="If syncing input with movie, this will keep the generated"
+                                       "subtitle created by autosub.", action='store_true')
     parser.add_argument('-l', '--lang',
                         help="If you --sync with subtitle provide the language of the --input subtitle. See languages.txt to find the language code (E.G. nl).")
     args = parser.parse_args()
@@ -268,7 +272,13 @@ def main():
     elif sync_extension in MOVIE_EXTENSIONS:
         print("Sync input with movie.")
         input_track = SubtitleTrack(args.input)
-        sync_track = generate_subtitle(args.sync)
+        generated_subtitle = generate_subtitle(args.sync, args.output)
+        sync_track = SubtitleTrack(generated_subtitle)
+
+        if not args.keep:
+            os.remove(generated_subtitle)
+        else:
+            print('Autosub generated subtitle saved to %s.' % generated_subtitle)
     else:
         print("Unable to detect sync method, -s/--sync is in unsupported format.")
         return 1
@@ -288,7 +298,7 @@ def main():
 
     input_track.write(args.output)
 
-    print("Wrote automatic synced subtitle file to %s" % args.output)
+    print("Wrote automatic synced subtitle file to %s." % args.output)
 
     return 0
 

@@ -225,7 +225,7 @@ def sync_with_linear_regression(subtitle_track, coefficient, intercept):
 
 def generate_subtitle(video_file, output):
     output = os.path.split(output)
-    output = os.path.join(output[0], ".%s.autosub" % output[1])
+    output = os.path.join(output[0], "%s.autosub" % output[1])
     cmd = ['autosub','-o', output, video_file]
     print subprocess.check_output(cmd, stderr=subprocess.STDOUT)
     return output

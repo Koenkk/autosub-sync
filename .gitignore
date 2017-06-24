@@ -99,3 +99,5 @@ ENV/
 .mypy_cache/
 
 data
+.DS_Store
+._.DS_Store

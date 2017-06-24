@@ -199,7 +199,6 @@ def main():
         return 1
 
     (coefficient, intercept) = calculate_linear_regression(matches)
-    print(coefficient, intercept)
 
     input_track = sync_with_linear_regression(input_track, coefficient, intercept)
 

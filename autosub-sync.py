@@ -141,7 +141,7 @@ def translate_subtitle(subtitle_track, target_language):
         except KeyboardInterrupt:
             sys.exit(1)
         except:
-            print('Failed to translate %s' % (subtitle.text))
+            print('Failed to translate index: %i' % (subtitle.index))
 
 
 def open_subtitle(file):

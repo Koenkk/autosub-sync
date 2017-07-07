@@ -94,13 +94,17 @@ def calculate_linear_regression(matches):
 
     X = np.vander(x, 2)
 
-    def calculate_ransac():
+    max_attempts = 3
+    def calculate_ransac(attempts=0):
+        if attempts is max_attempts:
+            raise Exception("Failed to calculate_ransac.")
+
         try:
             model_ransac = linear_model.RANSACRegressor()
             model_ransac.fit(X, y)
             return model_ransac
         except:
-            return calculate_ransac()
+            return calculate_ransac(attempts + 1)
 
     iterations = 5
     coef = 0

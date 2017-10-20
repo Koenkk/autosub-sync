@@ -162,7 +162,7 @@ def generate_subtitle(video_file, output):
 
 
 def translate_subtitle(subtitle_track, target_language):
-    logging.info('Translating: %s to %s' % (subtitle_track, target_language))
+    logging.info('Translating to %s' % (target_language))
     bar = progressbar.ProgressBar()
     for subtitle in bar(subtitle_track):
         try:

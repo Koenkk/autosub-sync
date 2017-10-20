@@ -245,7 +245,7 @@ if __name__ == '__main__':
                                               intercept)
 
     if args.debug:
-        plot_matches(matches, '%s.html' % args.input, coefficient, intercept)
+        plot_matches(matches, '%s.html' % args.output, coefficient, intercept)
 
     # Remove subtitles that start and end on 00:00:00.0000.
     for s in input_track.slice(ends_before={'minutes': 0, 'seconds': 0}):

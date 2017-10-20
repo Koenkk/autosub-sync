@@ -181,6 +181,66 @@ def open_subtitle(file):
         return pysrt.open(file, encoding='iso-8859-1')
 
 
+def start(input, sync, output, lang=None, debug=False):
+    logging.basicConfig(format='%(levelname)s - %(asctime)s: %(message)s',
+                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
+
+    sync_extension = os.path.splitext(sync)[1].lower()
+    if sync_extension.lower() == '.srt':
+        if not lang:
+            logging.error('Missing --lang, provide the language of --input.')
+            sys.exit(1)
+
+        logging.info("Syncing input with subtitle...")
+        input_track = open_subtitle(input)
+        sync_track = open_subtitle(sync)
+
+        if lang != 'en':
+            translate_subtitle(sync_track, lang)
+    elif sync_extension in VIDEO_EXTENSIONS:
+        logging.info("Syncing input with movie...")
+        input_track = open_subtitle(input)
+        generated_subtitle = generate_subtitle(sync, output)
+        sync_track = open_subtitle(generated_subtitle)
+
+        if not debug:
+            os.remove(generated_subtitle)
+        else:
+            logging.info('Autosub generated subtitle saved to %s.' %
+                         generated_subtitle)
+    else:
+        logging.error(("Unable to detect sync method, -s/--sync is in "
+                       "unsupported format."))
+        sys.exit(1)
+
+    matches = find_matches(input_track, sync_track)
+
+    if len(matches) is 0:
+        logging.error("Found no matches with sync input, unable to sync...")
+        sys.exit(1)
+
+    (coefficient, intercept) = calculate_linear_regression(matches)
+
+    input_track = sync_with_linear_regression(input_track, coefficient,
+                                              intercept)
+
+    if debug:
+        plot_matches(matches, '%s.html' % output, coefficient, intercept)
+
+    # Remove subtitles that start and end on 00:00:00.0000.
+    for s in input_track.slice(ends_before={'minutes': 0, 'seconds': 0}):
+        del input_track[input_track.index(s)]
+
+    # Renumber indexes
+    for s in input_track:
+        s.index = input_track.index(s)
+
+    # Save subtitle.
+    input_track.save(output, encoding='utf-8')
+
+    logging.info("Done!")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -202,60 +262,4 @@ if __name__ == '__main__':
               "(E.G. nl)."))
     args = parser.parse_args()
 
-    logging.basicConfig(format='%(levelname)s - %(asctime)s: %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
-
-    sync_extension = os.path.splitext(args.sync)[1].lower()
-    if sync_extension.lower() == '.srt':
-        if not args.lang:
-            logging.error('Missing --lang, provide the language of --input.')
-            sys.exit(1)
-
-        logging.info("Syncing input with subtitle...")
-        input_track = open_subtitle(args.input)
-        sync_track = open_subtitle(args.sync)
-
-        if args.lang != 'en':
-            translate_subtitle(sync_track, args.lang)
-    elif sync_extension in VIDEO_EXTENSIONS:
-        logging.info("Syncing input with movie...")
-        input_track = open_subtitle(args.input)
-        generated_subtitle = generate_subtitle(args.sync, args.output)
-        sync_track = open_subtitle(generated_subtitle)
-
-        if not args.debug:
-            os.remove(generated_subtitle)
-        else:
-            logging.info('Autosub generated subtitle saved to %s.' %
-                         generated_subtitle)
-    else:
-        logging.error(("Unable to detect sync method, -s/--sync is in "
-                       "unsupported format."))
-        sys.exit(1)
-
-    matches = find_matches(input_track, sync_track)
-
-    if len(matches) is 0:
-        logging.error("Found no matches with sync input, unable to sync...")
-        sys.exit(1)
-
-    (coefficient, intercept) = calculate_linear_regression(matches)
-
-    input_track = sync_with_linear_regression(input_track, coefficient,
-                                              intercept)
-
-    if args.debug:
-        plot_matches(matches, '%s.html' % args.output, coefficient, intercept)
-
-    # Remove subtitles that start and end on 00:00:00.0000.
-    for s in input_track.slice(ends_before={'minutes': 0, 'seconds': 0}):
-        del input_track[input_track.index(s)]
-
-    # Renumber indexes
-    for s in input_track:
-        s.index = input_track.index(s)
-
-    # Save subtitle.
-    input_track.save(args.output, encoding='utf-8')
-
-    logging.info("Done!")
+    start(args.input, args.sync, args.output, args.lang, args.debug)
